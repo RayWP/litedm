@@ -142,7 +142,13 @@ public sealed class DownloadTests
         var dir = TempDir();
         await using var manager = new DownloadManager(new DownloadOptions { MaxConcurrentDownloads = 1, MinimumSegmentedSize = long.MaxValue, SegmentsPerDownload = 1 });
         var started = new List<Guid>();
-        manager.Changed += s => { if (s.State == DownloadState.Downloading && !started.Contains(s.Id)) started.Add(s.Id); };
+        manager.onChangedCallback += s =>
+        {
+            if (s.State == DownloadState.Downloading && !started.Contains(s.Id))
+            {
+                started.Add(s.Id);
+            }
+        };
         var first = await manager.AddAsync(server.BaseUrl + "first", dir, "first.bin");
         var second = await manager.AddAsync(server.BaseUrl + "second", dir, "second.bin");
         await WaitForAsync(manager, first.Id, DownloadState.Completed);
@@ -159,7 +165,13 @@ public sealed class DownloadTests
         var dir = TempDir();
         await using var manager = new DownloadManager(new DownloadOptions { MaxConcurrentDownloads = 1, MinimumSegmentedSize = long.MaxValue, SegmentsPerDownload = 1 });
         var starts = new List<string>();
-        manager.Changed += s => { if (s.State == DownloadState.Downloading && !starts.Contains(s.FileName)) starts.Add(s.FileName); };
+        manager.onChangedCallback += s =>
+        {
+            if (s.State == DownloadState.Downloading && !starts.Contains(s.FileName))
+            {
+                starts.Add(s.FileName);
+            }
+        };
         var first = await manager.AddAsync(server.BaseUrl + "first", dir, "first.bin");
         await WaitUntilAsync(() => server.ActiveRequests > 0);
         var second = await manager.AddAsync(server.BaseUrl + "second", dir, "second.bin");
@@ -297,8 +309,14 @@ public sealed class DownloadTests
         while (true)
         {
             var item = manager.GetJobs().Single(x => x.Id == id);
-            if (item.State == state) return item;
-            if (item.State == DownloadState.Failed && state != DownloadState.Failed) throw new InvalidOperationException(item.Error);
+            if (item.State == state)
+            {
+                return item;
+            }
+            if (item.State == DownloadState.Failed && state != DownloadState.Failed)
+            {
+                throw new InvalidOperationException(item.Error);
+            }
             await Task.Delay(20, timeout.Token);
         }
     }
@@ -306,6 +324,9 @@ public sealed class DownloadTests
     private static async Task WaitUntilAsync(Func<bool> predicate)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-        while (!predicate()) await Task.Delay(10, timeout.Token);
+        while (!predicate())
+        {
+            await Task.Delay(10, timeout.Token);
+        }
     }
 }

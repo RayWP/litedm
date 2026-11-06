@@ -46,7 +46,10 @@ internal sealed class LocalStore
             Settings = result.Settings;
             return result;
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private LoadResult Load()
@@ -58,10 +61,15 @@ internal sealed class LocalStore
             settingsCommand.CommandText = "SELECT snapshot FROM settings WHERE id = 1";
             if (settingsCommand.ExecuteScalar() is not string settingsJson)
             {
-                if (!File.Exists(_legacyPath)) return new(new AppSettings(), [], null);
+                if (!File.Exists(_legacyPath))
+                {
+                    return new(new AppSettings(), [], null);
+                }
                 var legacy = JsonSerializer.Deserialize<PersistedData>(File.ReadAllText(_legacyPath), Json);
                 if (legacy is null || legacy.Version != 1)
+                {
                     throw new InvalidDataException("The saved LiteDM state has an unsupported format.");
+                }
                 var importedSettings = ValidateSettings(legacy.Settings ?? new AppSettings());
                 var importedJobs = KeepRecentHistory(legacy.History ?? []);
                 Write(connection, importedJobs, importedSettings);
@@ -77,7 +85,9 @@ internal sealed class LocalStore
             while (reader.Read())
             {
                 if (JsonSerializer.Deserialize<DownloadSnapshot>(reader.GetString(0), Json) is { } job)
+                {
                     jobs.Add(job);
+                }
             }
             return new(settings, jobs, null);
         }
@@ -99,7 +109,10 @@ internal sealed class LocalStore
                 Write(connection, jobs, settings);
             });
         }
-        finally { _gate.Release(); }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private SqliteConnection OpenDatabase()
@@ -149,7 +162,9 @@ internal sealed class LocalStore
     private static AppSettings ValidateSettings(AppSettings settings)
     {
         if (settings.Theme is not ("system" or "light" or "dark") || settings.MaxConcurrentDownloads is < 1 or > 16 || settings.SegmentsPerDownload is < 1 or > 16)
+        {
             throw new InvalidDataException("Saved LiteDM settings contain values outside the supported range.");
+        }
         return settings;
     }
 

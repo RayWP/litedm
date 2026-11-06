@@ -46,9 +46,18 @@ internal sealed class HttpFixture : IAsyncDisposable
         while (!_stop.IsCancellationRequested)
         {
             HttpListenerContext context;
-            try { context = await _listener.GetContextAsync().WaitAsync(_stop.Token); }
-            catch (OperationCanceledException) { break; }
-            catch (HttpListenerException) { break; }
+            try
+            {
+                context = await _listener.GetContextAsync().WaitAsync(_stop.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (HttpListenerException)
+            {
+                break;
+            }
             _ = RespondAsync(context);
         }
     }
@@ -94,16 +103,28 @@ internal sealed class HttpFixture : IAsyncDisposable
                 response.StatusCode = (int)HttpStatusCode.PartialContent;
                 response.Headers[HttpResponseHeader.ContentRange] = $"bytes {from}-{to}/{_body.Length}";
                 response.ContentLength64 = to - from + 1;
-                if (!request.HttpMethod.Equals("HEAD", StringComparison.OrdinalIgnoreCase)) await WriteBodyAsync(response, from, to - from + 1);
-                else response.Close();
+                if (!request.HttpMethod.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    await WriteBodyAsync(response, from, to - from + 1);
+                }
+                else
+                {
+                    response.Close();
+                }
             }
             else
             {
                 countedTransfer = true;
                 UpdateMaximum(Interlocked.Increment(ref ActiveRequests));
                 response.StatusCode = (int)HttpStatusCode.OK;
-                if (Chunked) response.SendChunked = true;
-                else response.ContentLength64 = _body.Length;
+                if (Chunked)
+                {
+                    response.SendChunked = true;
+                }
+                else
+                {
+                    response.ContentLength64 = _body.Length;
+                }
                 if (!request.HttpMethod.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
                 {
                     var drop = Interlocked.Exchange(ref DropFirstFullResponseAfterBytes, 0);
@@ -112,14 +133,26 @@ internal sealed class HttpFixture : IAsyncDisposable
                         await response.OutputStream.WriteAsync(_body.AsMemory(0, Math.Min(drop, _body.Length)), _stop.Token);
                         response.Abort();
                     }
-                    else await WriteBodyAsync(response, 0, _body.Length);
+                    else
+                    {
+                        await WriteBodyAsync(response, 0, _body.Length);
+                    }
                 }
-                else response.Close();
+                else
+                {
+                    response.Close();
+                }
             }
         }
         catch (HttpListenerException) { }
         catch (IOException) { }
-        finally { if (countedTransfer) Interlocked.Decrement(ref ActiveRequests); }
+        finally
+        {
+            if (countedTransfer)
+            {
+                Interlocked.Decrement(ref ActiveRequests);
+            }
+        }
     }
 
     private void UpdateMaximum(int value)
@@ -127,7 +160,10 @@ internal sealed class HttpFixture : IAsyncDisposable
         while (true)
         {
             var current = Volatile.Read(ref MaximumActiveRequests);
-            if (value <= current || Interlocked.CompareExchange(ref MaximumActiveRequests, value, current) == current) return;
+            if (value <= current || Interlocked.CompareExchange(ref MaximumActiveRequests, value, current) == current)
+            {
+                return;
+            }
         }
     }
 
@@ -141,7 +177,10 @@ internal sealed class HttpFixture : IAsyncDisposable
             await response.OutputStream.FlushAsync(_stop.Token);
             start += n;
             count -= n;
-            if (DelayPerChunkMs > 0) await Task.Delay(DelayPerChunkMs, _stop.Token);
+            if (DelayPerChunkMs > 0)
+            {
+                await Task.Delay(DelayPerChunkMs, _stop.Token);
+            }
         }
         response.Close();
     }
@@ -150,7 +189,11 @@ internal sealed class HttpFixture : IAsyncDisposable
     {
         _stop.Cancel();
         _listener.Close();
-        try { await _loop; } catch (OperationCanceledException) { }
+        try
+        {
+            await _loop;
+        }
+        catch (OperationCanceledException) { }
         _stop.Dispose();
     }
 }

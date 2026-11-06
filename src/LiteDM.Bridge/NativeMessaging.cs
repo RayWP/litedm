@@ -18,13 +18,22 @@ public static class NativeMessaging
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
-        if (maximumBytes < 1) throw new ArgumentOutOfRangeException(nameof(maximumBytes));
+        if (maximumBytes < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumBytes));
+        }
         var header = new byte[sizeof(uint)];
         var first = await input.ReadAsync(header.AsMemory(0, 1), cancellationToken);
-        if (first == 0) return null;
+        if (first == 0)
+        {
+            return null;
+        }
         await ReadExactlyAsync(input, header.AsMemory(1), cancellationToken);
         var length = BitConverter.ToUInt32(header, 0);
-        if (length > maximumBytes) throw new InvalidDataException($"Native message exceeds the {maximumBytes}-byte limit.");
+        if (length > maximumBytes)
+        {
+            throw new InvalidDataException($"Native message exceeds the {maximumBytes}-byte limit.");
+        }
         var payload = new byte[length];
         await ReadExactlyAsync(input, payload, cancellationToken);
         return payload;
@@ -40,11 +49,16 @@ public static class NativeMessaging
             {
                 using var document = JsonDocument.Parse(File.ReadAllBytes(manifestPath));
                 if (!document.RootElement.TryGetProperty("allowed_origins", out var property)
-                    || property.ValueKind != JsonValueKind.Array) continue;
+                    || property.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
                 foreach (var origin in property.EnumerateArray())
                 {
                     if (origin.ValueKind == JsonValueKind.String && IsWellFormedExtensionOrigin(origin.GetString()))
+                    {
                         origins.Add(origin.GetString()!);
+                    }
                 }
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
@@ -66,7 +80,10 @@ public static class NativeMessaging
     {
         ArgumentNullException.ThrowIfNull(output);
         var payload = JsonSerializer.SerializeToUtf8Bytes(message, NativeProtocol.JsonOptions);
-        if (payload.Length > MaxMessageBytes) throw new InvalidDataException("Native response exceeds the message limit.");
+        if (payload.Length > MaxMessageBytes)
+        {
+            throw new InvalidDataException("Native response exceeds the message limit.");
+        }
         var header = BitConverter.GetBytes((uint)payload.Length);
         await output.WriteAsync(header, cancellationToken);
         await output.WriteAsync(payload, cancellationToken);
@@ -77,7 +94,10 @@ public static class NativeMessaging
     public static async Task<NativeResponse> HandleMessageAsync(ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken = default, string? pipeName = null)
     {
-        if (payload.Length > MaxMessageBytes) return new(false, "The browser message is too large.");
+        if (payload.Length > MaxMessageBytes)
+        {
+            return new(false, "The browser message is too large.");
+        }
         NativeRequest? request;
         try
         {
@@ -88,13 +108,23 @@ public static class NativeMessaging
             return new(false, "The browser sent invalid JSON.");
         }
 
-        if (request is null) return new(false, "The browser sent an empty request.");
+        if (request is null)
+        {
+            return new(false, "The browser sent an empty request.");
+        }
         var action = request.Action?.Trim();
-        if (action is not ("addDownload" or "show")) return new(false, "LiteDM does not recognize this browser action.");
+        if (action is not ("addDownload" or "show"))
+        {
+            return new(false, "LiteDM does not recognize this browser action.");
+        }
         if (action == "addDownload" && !NativeProtocol.IsSupportedUrl(request.Url))
+        {
             return new(false, "Only valid HTTP and HTTPS links can be sent to LiteDM.");
+        }
         if (action == "show" && request.Url is not ("" or null) && !NativeProtocol.IsSupportedUrl(request.Url))
+        {
             return new(false, "The browser sent an invalid link.");
+        }
 
         try
         {
@@ -139,7 +169,10 @@ public static class NativeMessaging
                 await pipe.FlushAsync(totalTimeout.Token);
                 using var reader = new StreamReader(pipe, Encoding.UTF8, false, 1024, leaveOpen: true);
                 var responseLine = await reader.ReadLineAsync(totalTimeout.Token);
-                if (responseLine is null) throw new IOException("LiteDM closed the pipe without replying.");
+                if (responseLine is null)
+                {
+                    throw new IOException("LiteDM closed the pipe without replying.");
+                }
                 return JsonSerializer.Deserialize<NativeResponse>(responseLine, NativeProtocol.JsonOptions)
                     ?? new NativeResponse(false, "LiteDM returned an empty response.");
             }
@@ -162,7 +195,10 @@ public static class NativeMessaging
 
             if (!launched)
             {
-                if (!File.Exists(executable)) throw new FileNotFoundException("LiteDM.App.exe was not found.", executable);
+                if (!File.Exists(executable))
+                {
+                    throw new FileNotFoundException("LiteDM.App.exe was not found.", executable);
+                }
                 var start = new ProcessStartInfo(executable)
                 {
                     UseShellExecute = true,
@@ -183,7 +219,10 @@ public static class NativeMessaging
         while (offset < buffer.Length)
         {
             var read = await stream.ReadAsync(buffer[offset..], cancellationToken);
-            if (read == 0) throw new EndOfStreamException("The browser closed a truncated native message.");
+            if (read == 0)
+            {
+                throw new EndOfStreamException("The browser closed a truncated native message.");
+            }
             offset += read;
         }
     }

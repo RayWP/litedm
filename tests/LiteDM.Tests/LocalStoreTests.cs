@@ -39,7 +39,10 @@ public sealed class LocalStoreTests : IDisposable
     public async Task SaveRoundTripsSettingsAndPreservesAllUnfinishedJobs()
     {
         var jobs = Enumerable.Range(0, 250).Select(i => Job(i, DownloadState.Paused)).ToArray();
-        jobs[0] = jobs[0] with { Parts = [new(10, 20), new(5, 20)] };
+        jobs[0] = jobs[0] with
+        {
+            Parts = [new(10, 20), new(5, 20)]
+        };
         var settings = new AppSettings { Theme = "dark", MaxConcurrentDownloads = 3, SegmentsPerDownload = 8 };
         await new LocalStore(StatePath).SaveAsync(jobs, settings);
         var result = await new LocalStore(StatePath).LoadAsync();
@@ -96,9 +99,21 @@ public sealed class LocalStoreTests : IDisposable
     public void RecentHistoryUsesStatusAndCaseInsensitiveFileNameWithinTheLatestTwenty()
     {
         var recent = DateTimeOffset.UtcNow;
-        var old = Job(1, DownloadState.Completed) with { FileName = "old-only.zip", HistoryAtUtc = recent.AddDays(-2) };
-        var paused = Job(2, DownloadState.Paused) with { FileName = "MyFile.zip", HistoryAtUtc = recent };
-        var corrupt = Job(3, DownloadState.Failed) with { IsCorrupt = true, HistoryAtUtc = recent.AddDays(-1) };
+        var old = Job(1, DownloadState.Completed) with
+        {
+            FileName = "old-only.zip",
+            HistoryAtUtc = recent.AddDays(-2)
+        };
+        var paused = Job(2, DownloadState.Paused) with
+        {
+            FileName = "MyFile.zip",
+            HistoryAtUtc = recent
+        };
+        var corrupt = Job(3, DownloadState.Failed) with
+        {
+            IsCorrupt = true,
+            HistoryAtUtc = recent.AddDays(-1)
+        };
         var jobs = Enumerable.Range(4, 18).Select(i => Job(i, DownloadState.Completed) with { HistoryAtUtc = recent })
             .Append(old).Append(paused).Append(corrupt).ToArray();
 
@@ -119,6 +134,9 @@ public sealed class LocalStoreTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true);
+        if (Directory.Exists(_directory))
+        {
+            Directory.Delete(_directory, recursive: true);
+        }
     }
 }

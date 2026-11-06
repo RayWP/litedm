@@ -42,26 +42,49 @@ public sealed partial class MainWindow : Window
         UpdateMinimumWindowSize();
         Root.Loaded += (_, _) => Root.XamlRoot.Changed += (_, _) => UpdateMinimumWindowSize();
         appWindow.Closing += OnClosing;
-        Root.ActualThemeChanged += (_, _) => { if (_store.Settings.Theme == "system") ApplyTheme("system"); };
+        Root.ActualThemeChanged += (_, _) =>
+        {
+            if (_store.Settings.Theme == "system")
+            {
+                ApplyTheme("system");
+            }
+        };
         _tray = new TrayIcon(WindowNative.GetWindowHandle(this), ShowWindow, ExitFromTray);
     }
 
     public async Task InitializeAsync()
     {
-        if (_initialized) return;
+        if (_initialized)
+        {
+            return;
+        }
         _initialized = true;
         var loaded = await _store.LoadAsync();
         ApplyTheme(loaded.Settings.Theme);
         _manager = new DownloadManager(loaded.Settings.ToOptions());
-        _manager.Changed += OnChanged;
+        _manager.onChangedCallback += OnChanged;
         if (loaded.Snapshots.Count > 0)
         {
-            foreach (var snapshot in loaded.Snapshots) _jobs[snapshot.Id] = snapshot;
+            foreach (var snapshot in loaded.Snapshots)
+            {
+                _jobs[snapshot.Id] = snapshot;
+            }
             RenderJobs();
-            try { StartupLog.Write("Restore started"); await _manager.RestoreAsync(loaded.Snapshots); StartupLog.Write("Restore completed"); }
-            catch (Exception ex) { ShowNotice($"Saved downloads could not be restored: {ex.Message}", isError: true); }
+            try
+            {
+                StartupLog.Write("Restore started");
+                await _manager.RestoreAsync(loaded.Snapshots);
+                StartupLog.Write("Restore completed");
+            }
+            catch (Exception ex)
+            {
+                ShowNotice($"Saved downloads could not be restored: {ex.Message}", isError: true);
+            }
         }
-        if (loaded.Warning is not null) ShowNotice(loaded.Warning, isError: true);
+        if (loaded.Warning is not null)
+        {
+            ShowNotice(loaded.Warning, isError: true);
+        }
         RenderJobs();
         _pipeTask = ServePipeAsync(_pipeLifetime.Token);
     }
@@ -70,7 +93,10 @@ public sealed partial class MainWindow : Window
     {
         _ = DispatcherQueue.TryEnqueue(() =>
         {
-            if (!_jobs.ContainsKey(snapshot.Id) && _manager?.GetJobs().Any(job => job.Id == snapshot.Id) != true) return;
+            if (!_jobs.ContainsKey(snapshot.Id) && _manager?.GetJobs().Any(job => job.Id == snapshot.Id) != true)
+            {
+                return;
+            }
             _jobs[snapshot.Id] = snapshot;
             RenderJobs();
             ScheduleSave();
@@ -80,15 +106,29 @@ public sealed partial class MainWindow : Window
     private async void Add_Click(object sender, RoutedEventArgs e) => await ReviewUrlAsync(UrlBox.Text);
     private async void UrlBox_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; await ReviewUrlAsync(UrlBox.Text); }
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await ReviewUrlAsync(UrlBox.Text);
+        }
     }
 
     private async Task<bool> ReviewUrlAsync(string? rawUrl)
     {
         await _dialogGate.WaitAsync();
-        try { return await ReviewUrlCoreAsync(rawUrl); }
-        catch (Exception ex) { ShowNotice($"The download could not be reviewed: {ex.Message}", true); return false; }
-        finally { _dialogGate.Release(); }
+        try
+        {
+            return await ReviewUrlCoreAsync(rawUrl);
+        }
+        catch (Exception ex)
+        {
+            ShowNotice($"The download could not be reviewed: {ex.Message}", true);
+            return false;
+        }
+        finally
+        {
+            _dialogGate.Release();
+        }
     }
 
     private async Task<bool> ReviewUrlCoreAsync(string? rawUrl)
@@ -101,7 +141,10 @@ public sealed partial class MainWindow : Window
         }
         var uri = new Uri(url);
         var suggested = Path.GetFileName(Uri.UnescapeDataString(uri.AbsolutePath));
-        if (string.IsNullOrWhiteSpace(suggested)) suggested = "download";
+        if (string.IsNullOrWhiteSpace(suggested))
+        {
+            suggested = "download";
+        }
         var nameBox = new TextBox { Text = suggested, Header = "File name" };
         var pathBox = new TextBox { Text = WindowsFolderPaths.GetDownloads(), Header = "Save location" };
         var browse = new Button { Content = "Choose folder…", VerticalAlignment = VerticalAlignment.Bottom };
@@ -109,7 +152,9 @@ public sealed partial class MainWindow : Window
         var folderRow = new Grid { ColumnSpacing = 8 };
         folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        folderRow.Children.Add(pathBox); Grid.SetColumn(browse, 1); folderRow.Children.Add(browse);
+        folderRow.Children.Add(pathBox);
+        Grid.SetColumn(browse, 1);
+        folderRow.Children.Add(browse);
         browse.Click += async (_, _) =>
         {
             try
@@ -118,7 +163,10 @@ public sealed partial class MainWindow : Window
                 picker.FileTypeFilter.Add("*");
                 InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
                 var folder = await picker.PickSingleFolderAsync();
-                if (folder is not null) pathBox.Text = folder.Path;
+                if (folder is not null)
+                {
+                    pathBox.Text = folder.Path;
+                }
             }
             catch (Exception ex)
             {
@@ -142,13 +190,19 @@ public sealed partial class MainWindow : Window
         };
         dialog.PrimaryButtonClick += (_, args) =>
         {
-            if (!string.IsNullOrWhiteSpace(nameBox.Text) && Path.IsPathFullyQualified(pathBox.Text.Trim())) return;
+            if (!string.IsNullOrWhiteSpace(nameBox.Text) && Path.IsPathFullyQualified(pathBox.Text.Trim()))
+            {
+                return;
+            }
             args.Cancel = true;
             error.Text = "Enter a file name and choose a folder or type its full path.";
             error.Visibility = Visibility.Visible;
         };
         var result = await dialog.ShowAsync();
-        if (result != ContentDialogResult.Primary) return false;
+        if (result != ContentDialogResult.Primary)
+        {
+            return false;
+        }
         try
         {
             var job = await _manager!.AddAsync(url, pathBox.Text.Trim(), nameBox.Text.Trim());
@@ -196,14 +250,20 @@ public sealed partial class MainWindow : Window
 
     private void RenderHistory()
     {
-        if (HistoryEntries is null || HistoryEmpty is null || HistorySearch is null || HistoryFilter is null) return;
+        if (HistoryEntries is null || HistoryEmpty is null || HistorySearch is null || HistoryFilter is null)
+        {
+            return;
+        }
         var selected = (HistoryFilter.SelectedItem as ComboBoxItem)?.Content as string;
         DownloadHistoryStatus? status = Enum.TryParse<DownloadHistoryStatus>(selected, out var value) ? value : null;
         var search = HistorySearch.Text.Trim();
         var history = LocalStore.RecentHistory(_jobs.Values, search, status).ToArray();
         HistoryEmpty.Visibility = history.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         HistoryEmpty.Text = search.Length > 0 || status.HasValue ? "No matching downloads" : "No history yet";
-        if (_visibleHistory.SequenceEqual(history)) return;
+        if (_visibleHistory.SequenceEqual(history))
+        {
+            return;
+        }
 
         _visibleHistory = history;
         HistoryEntries.Children.Clear();
@@ -211,12 +271,14 @@ public sealed partial class MainWindow : Window
         {
             var name = new TextBlock
             {
-                Text = job.FileName, TextTrimming = TextTrimming.CharacterEllipsis,
+                Text = job.FileName,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 Foreground = (Brush)Application.Current.Resources["PrimaryText"]
             };
             var details = new TextBlock
             {
-                Text = job.HistoryStatus.ToString(), FontSize = 12,
+                Text = job.HistoryStatus.ToString(),
+                FontSize = 12,
                 Foreground = (Brush)Application.Current.Resources["SecondaryText"]
             };
             var entry = new StackPanel { Padding = new Thickness(7, 4, 7, 4), Spacing = 2, Children = { name, details } };
@@ -239,7 +301,9 @@ public sealed partial class MainWindow : Window
         partGrid.ColumnDefinitions.Add(new ColumnDefinition());
         var partHeading = new TextBlock
         {
-            Text = "Download parts", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Text = "Download parts",
+            FontSize = 12,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             Foreground = (Brush)Application.Current.Resources["PrimaryText"]
         };
         var parts = new StackPanel { Spacing = 4, Visibility = Visibility.Collapsed, Children = { partHeading, partGrid } };
@@ -261,21 +325,48 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(card.Border, job.Error);
         UpdatePartBars(card, job);
         var mode = ControlMode(job);
-        if (card.Mode == mode) return;
+        if (card.Mode == mode)
+        {
+            return;
+        }
         card.Mode = mode;
         card.Controls.Children.Clear();
-        if (mode == "active") card.Controls.Children.Add(ActionButton("Pause", job, async id => await _manager!.PauseAsync(id)));
-        if (mode == "resume") card.Controls.Children.Add(ActionButton("Resume", job, async id => await _manager!.ResumeAsync(id)));
-        if (mode == "retry") card.Controls.Children.Add(ActionButton("Retry", job, async id => await _manager!.ResumeAsync(id)));
-        if (mode == "restart") card.Controls.Children.Add(ActionButton("Restart", job, async id => await _manager!.RestartAsync(id)));
-        if (mode == "active") card.Controls.Children.Add(ActionButton("Cancel", job, id => _manager!.CancelAsync(id)));
-        if (job.CanRemove) card.Controls.Children.Add(ActionButton("Remove", job, id => ConfirmRemovalAsync([id])));
+        if (mode == "active")
+        {
+            card.Controls.Children.Add(ActionButton("Pause", job, async id => await _manager!.PauseAsync(id)));
+        }
+        if (mode == "resume")
+        {
+            card.Controls.Children.Add(ActionButton("Resume", job, async id => await _manager!.ResumeAsync(id)));
+        }
+        if (mode == "retry")
+        {
+            card.Controls.Children.Add(ActionButton("Retry", job, async id => await _manager!.ResumeAsync(id)));
+        }
+        if (mode == "restart")
+        {
+            card.Controls.Children.Add(ActionButton("Restart", job, async id => await _manager!.RestartAsync(id)));
+        }
+        if (mode == "active")
+        {
+            card.Controls.Children.Add(ActionButton("Cancel", job, id => _manager!.CancelAsync(id)));
+        }
+        if (job.CanRemove)
+        {
+            card.Controls.Children.Add(ActionButton("Remove", job, id => ConfirmRemovalAsync([id])));
+        }
     }
 
     private async void RemoveStopped_Click(object sender, RoutedEventArgs e)
     {
-        try { await ConfirmRemovalAsync(_jobs.Values.Where(job => job.CanRemove).Select(job => job.Id).ToArray()); }
-        catch (Exception ex) { ShowNotice($"Could not remove stopped transfers. {ex.Message}", true); }
+        try
+        {
+            await ConfirmRemovalAsync(_jobs.Values.Where(job => job.CanRemove).Select(job => job.Id).ToArray());
+        }
+        catch (Exception ex)
+        {
+            ShowNotice($"Could not remove stopped transfers. {ex.Message}", true);
+        }
     }
 
     private async Task ConfirmRemovalAsync(Guid[] ids)
@@ -285,7 +376,10 @@ public sealed partial class MainWindow : Window
         {
             var manager = _manager;
             var jobs = ids.Where(id => _jobs.TryGetValue(id, out var job) && job.CanRemove).ToArray();
-            if (_allowClose || manager is null || jobs.Length == 0) return;
+            if (_allowClose || manager is null || jobs.Length == 0)
+            {
+                return;
+            }
 
             var dialog = new ContentDialog
             {
@@ -296,10 +390,16 @@ public sealed partial class MainWindow : Window
                 DefaultButton = ContentDialogButton.Close,
                 XamlRoot = Root.XamlRoot
             };
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary || _allowClose) return;
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary || _allowClose)
+            {
+                return;
+            }
             await (_removalTask = RemoveConfirmedAsync(manager, jobs));
         }
-        finally { _dialogGate.Release(); }
+        finally
+        {
+            _dialogGate.Release();
+        }
     }
 
     private async Task RemoveConfirmedAsync(DownloadManager manager, Guid[] jobs)
@@ -311,7 +411,10 @@ public sealed partial class MainWindow : Window
         {
             try
             {
-                if (!await manager.RemoveStoppedAsync(id)) continue;
+                if (!await manager.RemoveStoppedAsync(id))
+                {
+                    continue;
+                }
                 _jobs.Remove(id);
                 removed++;
             }
@@ -325,12 +428,25 @@ public sealed partial class MainWindow : Window
         RenderJobs();
         if (removed > 0)
         {
-            try { await _store.SaveAsync(_jobs.Values.ToArray(), _store.Settings); }
-            catch { ScheduleSave(); throw; }
+            try
+            {
+                await _store.SaveAsync(_jobs.Values.ToArray(), _store.Settings);
+            }
+            catch
+            {
+                ScheduleSave();
+                throw;
+            }
         }
 
-        if (failed > 0) ShowNotice($"Removed {removed}. Could not remove {failed}. {failure}", true);
-        else if (removed > 0) ShowNotice(removed == 1 ? "Transfer removed." : $"{removed} transfers removed.");
+        if (failed > 0)
+        {
+            ShowNotice($"Removed {removed}. Could not remove {failed}. {failure}", true);
+        }
+        else if (removed > 0)
+        {
+            ShowNotice(removed == 1 ? "Transfer removed." : $"{removed} transfers removed.");
+        }
     }
 
     private static void UpdatePartBars(JobCard card, DownloadSnapshot job)
@@ -344,7 +460,10 @@ public sealed partial class MainWindow : Window
             card.PartGrid.RowDefinitions.Clear();
             for (var i = 0; i < count; i++)
             {
-                if (i % 2 == 0) card.PartGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                if (i % 2 == 0)
+                {
+                    card.PartGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                }
                 var label = new TextBlock { FontSize = 12, Foreground = (Brush)Application.Current.Resources["SecondaryText"] };
                 var bar = new ProgressBar { Maximum = 100, Height = 5, Foreground = (Brush)Application.Current.Resources["Accent"] };
                 AutomationProperties.SetName(bar, $"Part {i + 1} progress");
@@ -376,19 +495,36 @@ public sealed partial class MainWindow : Window
 
     private void UpdateMinimumWindowSize()
     {
-        if (AppWindow.Presenter is not OverlappedPresenter presenter) return;
+        if (AppWindow.Presenter is not OverlappedPresenter presenter)
+        {
+            return;
+        }
         var scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96d;
         var width = (int)Math.Ceiling(656 * scale);
         var height = (int)Math.Ceiling(520 * scale);
-        if (presenter.PreferredMinimumWidth != width) presenter.PreferredMinimumWidth = width;
-        if (presenter.PreferredMinimumHeight != height) presenter.PreferredMinimumHeight = height;
+        if (presenter.PreferredMinimumWidth != width)
+        {
+            presenter.PreferredMinimumWidth = width;
+        }
+        if (presenter.PreferredMinimumHeight != height)
+        {
+            presenter.PreferredMinimumHeight = height;
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint hwnd);
     private sealed class JobCard(Border border, TextBlock fileName, TextBlock directory, TextBlock status, ProgressBar progress, TextBlock progressText, TextBlock eta, StackPanel controls, StackPanel parts, Grid partGrid)
     {
-        public Border Border { get; } = border; public TextBlock FileName { get; } = fileName; public TextBlock Directory { get; } = directory; public TextBlock Status { get; } = status; public ProgressBar Progress { get; } = progress; public TextBlock ProgressText { get; } = progressText; public TextBlock Eta { get; } = eta; public StackPanel Controls { get; } = controls; public string? Mode { get; set; }
+        public Border Border { get; } = border;
+        public TextBlock FileName { get; } = fileName;
+        public TextBlock Directory { get; } = directory;
+        public TextBlock Status { get; } = status;
+        public ProgressBar Progress { get; } = progress;
+        public TextBlock ProgressText { get; } = progressText;
+        public TextBlock Eta { get; } = eta;
+        public StackPanel Controls { get; } = controls;
+        public string? Mode { get; set; }
         public StackPanel Parts { get; } = parts;
         public Grid PartGrid { get; } = partGrid;
         public List<(TextBlock Label, ProgressBar Bar)> PartBars { get; } = [];
@@ -405,20 +541,35 @@ public sealed partial class MainWindow : Window
             _saveTimer.IsRepeating = false;
             _saveTimer.Tick += async (_, _) => await FlushPendingSaveAsync();
         }
-        if (!_saveTimer.IsRunning && !_saveInProgress) _saveTimer.Start();
+        if (!_saveTimer.IsRunning && !_saveInProgress)
+        {
+            _saveTimer.Start();
+        }
     }
 
     private async Task FlushPendingSaveAsync()
     {
-        if (!_saveDirty || _saveInProgress) return;
+        if (!_saveDirty || _saveInProgress)
+        {
+            return;
+        }
         _saveDirty = false;
         _saveInProgress = true;
-        try { await _store.SaveAsync(_jobs.Values.ToArray(), _store.Settings); }
-        catch (Exception ex) { ShowNotice($"Download progress could not be saved: {ex.Message}", true); }
+        try
+        {
+            await _store.SaveAsync(_jobs.Values.ToArray(), _store.Settings);
+        }
+        catch (Exception ex)
+        {
+            ShowNotice($"Download progress could not be saved: {ex.Message}", true);
+        }
         finally
         {
             _saveInProgress = false;
-            if (_saveDirty) _saveTimer?.Start();
+            if (_saveDirty)
+            {
+                _saveTimer?.Start();
+            }
         }
     }
 
@@ -429,9 +580,18 @@ public sealed partial class MainWindow : Window
         button.Click += async (_, _) =>
 {
     button.IsEnabled = false;
-    try { await action(job.Id); }
-    catch (Exception ex) { ShowNotice($"{label} failed: {ex.Message}", true); }
-    finally { button.IsEnabled = true; }
+    try
+    {
+        await action(job.Id);
+    }
+    catch (Exception ex)
+    {
+        ShowNotice($"{label} failed: {ex.Message}", true);
+    }
+    finally
+    {
+        button.IsEnabled = true;
+    }
 };
         return button;
     }
@@ -439,9 +599,18 @@ public sealed partial class MainWindow : Window
     private async void Settings_Click(object sender, RoutedEventArgs e)
     {
         await _dialogGate.WaitAsync();
-        try { await ShowSettingsDialogAsync(); }
-        catch (Exception ex) { ShowNotice($"Settings could not be opened: {ex.Message}", true); }
-        finally { _dialogGate.Release(); }
+        try
+        {
+            await ShowSettingsDialogAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowNotice($"Settings could not be opened: {ex.Message}", true);
+        }
+        finally
+        {
+            _dialogGate.Release();
+        }
     }
 
     private async Task ShowSettingsDialogAsync()
@@ -450,30 +619,82 @@ public sealed partial class MainWindow : Window
         var max = new NumberBox { Header = "Maximum simultaneous downloads", Value = current.MaxConcurrentDownloads, Minimum = 1, Maximum = 16, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
         var segments = new NumberBox { Header = "Segments per download", Value = current.SegmentsPerDownload, Minimum = 1, Maximum = 16, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
         var theme = new ComboBox { Header = "Appearance", SelectedIndex = current.Theme switch { "light" => 1, "dark" => 2, _ => 0 }, MinWidth = 220 };
-        theme.Items.Add(new ComboBoxItem { Content = "System" }); theme.Items.Add(new ComboBoxItem { Content = "Light" }); theme.Items.Add(new ComboBoxItem { Content = "Dark" });
-        var content = new StackPanel { Spacing = 12 }; content.Children.Add(max); content.Children.Add(segments); content.Children.Add(theme);
+        theme.Items.Add(new ComboBoxItem { Content = "System" });
+        theme.Items.Add(new ComboBoxItem { Content = "Light" });
+        theme.Items.Add(new ComboBoxItem { Content = "Dark" });
+        var content = new StackPanel { Spacing = 12 };
+        content.Children.Add(max);
+        content.Children.Add(segments);
+        content.Children.Add(theme);
         var dialog = new ContentDialog { Title = "Settings", Content = content, PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Root.XamlRoot };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
         if (!double.IsFinite(max.Value) || !double.IsFinite(segments.Value) || max.Value != Math.Truncate(max.Value) || segments.Value != Math.Truncate(segments.Value))
         {
             ShowNotice("Enter whole numbers between 1 and 16 for the download limits.", true);
             return;
         }
-        var updated = current with { MaxConcurrentDownloads = (int)Math.Clamp(max.Value, 1, 16), SegmentsPerDownload = (int)Math.Clamp(segments.Value, 1, 16), Theme = theme.SelectedIndex switch { 1 => "light", 2 => "dark", _ => "system" } };
+        var updated = current with
+        {
+            MaxConcurrentDownloads = (int)Math.Clamp(max.Value, 1, 16),
+            SegmentsPerDownload = (int)Math.Clamp(segments.Value, 1, 16),
+            Theme = theme.SelectedIndex switch
+            {
+                1 => "light",
+                2 => "dark",
+                _ => "system"
+            }
+        };
         _store.Settings = updated;
         _manager?.UpdateOptions(updated.ToOptions());
         ApplyTheme(updated.Theme);
-        try { await _store.SaveAsync(_jobs.Values.ToArray(), updated); ShowNotice("Settings saved."); }
-        catch (Exception ex) { ShowNotice($"Settings were applied but could not be saved: {ex.Message}", true); }
+        try
+        {
+            await _store.SaveAsync(_jobs.Values.ToArray(), updated);
+            ShowNotice("Settings saved.");
+        }
+        catch (Exception ex)
+        {
+            ShowNotice($"Settings were applied but could not be saved: {ex.Message}", true);
+        }
     }
 
     private void ApplyTheme(string theme)
     {
-        Root.RequestedTheme = theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
+        Root.RequestedTheme = theme switch
+        {
+            "light" => ElementTheme.Light,
+            "dark" => ElementTheme.Dark,
+            _ => ElementTheme.Default
+        };
         var dark = theme == "dark" || theme == "system" && Root.ActualTheme == ElementTheme.Dark;
         var colors = dark
-            ? new Dictionary<string, string> { ["AppBackground"] = "#172431", ["Surface"] = "#223344", ["SurfaceAlt"] = "#2B4053", ["PrimaryText"] = "#E8F1F8", ["SecondaryText"] = "#B6C7D6", ["Accent"] = "#75B5F1", ["AccentForeground"] = "#17324D", ["Line"] = "#53697D", ["Danger"] = "#FF9C91" }
-            : new Dictionary<string, string> { ["AppBackground"] = "#E8EDF2", ["Surface"] = "#FFFFFF", ["SurfaceAlt"] = "#DCEFFC", ["PrimaryText"] = "#17324D", ["SecondaryText"] = "#50677D", ["Accent"] = "#2563A6", ["AccentForeground"] = "#FFFFFF", ["Line"] = "#CBD6E0", ["Danger"] = "#A63A3A" };
+            ? new Dictionary<string, string>
+            {
+                ["AppBackground"] = "#172431",
+                ["Surface"] = "#223344",
+                ["SurfaceAlt"] = "#2B4053",
+                ["PrimaryText"] = "#E8F1F8",
+                ["SecondaryText"] = "#B6C7D6",
+                ["Accent"] = "#75B5F1",
+                ["AccentForeground"] = "#17324D",
+                ["Line"] = "#53697D",
+                ["Danger"] = "#FF9C91"
+            }
+            : new Dictionary<string, string>
+            {
+                ["AppBackground"] = "#E8EDF2",
+                ["Surface"] = "#FFFFFF",
+                ["SurfaceAlt"] = "#DCEFFC",
+                ["PrimaryText"] = "#17324D",
+                ["SecondaryText"] = "#50677D",
+                ["Accent"] = "#2563A6",
+                ["AccentForeground"] = "#FFFFFF",
+                ["Line"] = "#CBD6E0",
+                ["Danger"] = "#A63A3A"
+            };
         foreach (var (key, value) in colors)
         {
             var brush = (SolidColorBrush)Application.Current.Resources[key];
@@ -493,37 +714,78 @@ public sealed partial class MainWindow : Window
     {
         if (!_allowClose)
         {
-            if (_tray?.Available == true) { args.Cancel = true; HideToTray(); }
-            else { args.Cancel = true; ShowNotice("LiteDM could not create its tray icon, so the window stayed open. Try again after the notification area is available.", true); }
+            if (_tray?.Available == true)
+            {
+                args.Cancel = true;
+                HideToTray();
+            }
+            else
+            {
+                args.Cancel = true;
+                ShowNotice("LiteDM could not create its tray icon, so the window stayed open. Try again after the notification area is available.", true);
+            }
         }
     }
     private void HideToTray() => AppWindow.Hide();
-    private void ShowWindow() { AppWindow.Show(); Activate(); }
+    private void ShowWindow()
+    {
+        AppWindow.Show();
+        Activate();
+    }
     private async Task ExitFromTray()
     {
-        if (_allowClose) return;
+        if (_allowClose)
+        {
+            return;
+        }
         _allowClose = true;
         AddButton.IsEnabled = SettingsButton.IsEnabled = false;
         RemoveStoppedButton.IsEnabled = false;
-        try { await _removalTask; }
-        catch (Exception ex) { Debug.WriteLine(ex); }
+        try
+        {
+            await _removalTask;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
         _saveTimer?.Stop();
         _pipeLifetime.Cancel();
         await Task.WhenAny(_pipeTask, Task.Delay(1000));
-        try { if (_manager is not null) await _manager.ShutdownAsync(); }
-        catch (Exception ex) { Debug.WriteLine(ex); }
-        try { await _store.SaveAsync(_manager?.GetJobs() ?? _jobs.Values.ToArray(), _store.Settings); }
+        try
+        {
+            if (_manager is not null)
+            {
+                await _manager.ShutdownAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+        try
+        {
+            await _store.SaveAsync(_manager?.GetJobs() ?? _jobs.Values.ToArray(), _store.Settings);
+        }
         catch (Exception ex)
         {
             ShowNotice($"Final progress could not be saved: {ex.Message} Downloads are stopped. Use Exit in the tray to retry saving.", true);
             ShowWindow();
             foreach (var card in _cards.Values)
-                foreach (var control in card.Controls.Children.OfType<Control>()) control.IsEnabled = false;
+            {
+                foreach (var control in card.Controls.Children.OfType<Control>())
+                {
+                    control.IsEnabled = false;
+                }
+            }
             UrlBox.IsEnabled = false;
             _allowClose = false;
             return;
         }
-        if (_manager is not null) await _manager.DisposeAsync();
+        if (_manager is not null)
+        {
+            await _manager.DisposeAsync();
+        }
         _tray?.Dispose();
         Close();
         Microsoft.UI.Xaml.Application.Current.Exit();
@@ -544,7 +806,11 @@ public sealed partial class MainWindow : Window
                 try
                 {
                     var request = JsonSerializer.Deserialize<NativeRequest>(line ?? "", NativeProtocol.JsonOptions);
-                    if (request?.Action == "show") { await DispatcherTask(ShowWindow); response = new(true); }
+                    if (request?.Action == "show")
+                    {
+                        await DispatcherTask(ShowWindow);
+                        response = new(true);
+                    }
                     else if (request?.Action == "addDownload" && NativeProtocol.IsSupportedUrl(request.Url))
                     {
                         _requestQueue = _requestQueue.ContinueWith(async _ =>
@@ -554,19 +820,38 @@ public sealed partial class MainWindow : Window
                                 await DispatcherTask(ShowWindow);
                                 await DispatcherTask(() => ReviewUrlAsync(request.Url));
                             }
-                            catch (Exception ex) { await DispatcherTask(() => ShowNotice($"Could not review the requested download: {ex.Message}", true)); }
+                            catch (Exception ex)
+                            {
+                                await DispatcherTask(() => ShowNotice($"Could not review the requested download: {ex.Message}", true));
+                            }
                         }, TaskScheduler.Default).Unwrap();
                         await DispatcherTask(ShowWindow);
                         response = new(true);
                     }
-                    else response = new(false, "Unsupported request.");
+                    else
+                    {
+                        response = new(false, "Unsupported request.");
+                    }
                 }
-                catch (Exception ex) { response = new(false, ex.Message); }
+                catch (Exception ex)
+                {
+                    response = new(false, ex.Message);
+                }
                 var encoded = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, NativeProtocol.JsonOptions) + "\n");
                 await server.WriteAsync(encoded, connectionTimeout.Token);
             }
-            catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { break; }
-            catch (Exception ex) { Debug.WriteLine($"Pipe server: {ex.Message}"); if (!lifetime.IsCancellationRequested) await Task.Delay(300, lifetime); }
+            catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Pipe server: {ex.Message}");
+                if (!lifetime.IsCancellationRequested)
+                {
+                    await Task.Delay(300, lifetime);
+                }
+            }
         }
     }
 
@@ -577,8 +862,14 @@ public sealed partial class MainWindow : Window
         while (memory.Length <= maximumBytes)
         {
             var read = await stream.ReadAsync(one.AsMemory(0, 1), cancellationToken);
-            if (read == 0) return memory.Length == 0 ? null : new UTF8Encoding(false, true).GetString(memory.ToArray());
-            if (one[0] == (byte)'\n') return new UTF8Encoding(false, true).GetString(memory.ToArray()).TrimEnd('\r');
+            if (read == 0)
+            {
+                return memory.Length == 0 ? null : new UTF8Encoding(false, true).GetString(memory.ToArray());
+            }
+            if (one[0] == (byte)'\n')
+            {
+                return new UTF8Encoding(false, true).GetString(memory.ToArray()).TrimEnd('\r');
+            }
             memory.WriteByte(one[0]);
         }
         throw new InvalidDataException("The local request exceeded the 64 KiB limit.");
@@ -587,13 +878,35 @@ public sealed partial class MainWindow : Window
     private Task DispatcherTask(Action action)
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        DispatcherQueue.TryEnqueue(() => { try { action(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } });
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            try
+            {
+                action();
+                tcs.SetResult();
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
         return tcs.Task;
     }
     private Task DispatcherTask(Func<Task> action)
     {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        DispatcherQueue.TryEnqueue(async () => { try { await action(); tcs.SetResult(); } catch (Exception ex) { tcs.SetException(ex); } });
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                await action();
+                tcs.SetResult();
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
         return tcs.Task;
     }
 
@@ -610,8 +923,13 @@ public sealed partial class MainWindow : Window
     private static string FormatBytes(long bytes)
     {
         string[] units = ["B", "KB", "MB", "GB", "TB"];
-        var value = (double)Math.Max(0, bytes); var unit = 0;
-        while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
+        var value = (double)Math.Max(0, bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
         return unit == 0 ? $"{(long)value} {units[unit]}" : $"{value:0.#} {units[unit]}";
     }
 }

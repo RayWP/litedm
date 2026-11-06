@@ -8,8 +8,15 @@ public partial class App : Application
 
     public App()
     {
-        try { InitializeComponent(); }
-        catch (Exception ex) { StartupLog.Write("App XAML initialization failed", ex); throw; }
+        try
+        {
+            InitializeComponent();
+        }
+        catch (Exception ex)
+        {
+            StartupLog.Write("App XAML initialization failed", ex);
+            throw;
+        }
         UnhandledException += (_, e) => StartupLog.Write("Unhandled application exception", e.Exception);
     }
 

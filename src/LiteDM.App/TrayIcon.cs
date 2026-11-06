@@ -25,28 +25,44 @@ internal sealed class TrayIcon : IDisposable
 
     public TrayIcon(nint hwnd, Action open, Func<Task> exit)
     {
-        _hwnd = hwnd; _open = open; _exit = exit;
+        _hwnd = hwnd;
+        _open = open;
+        _exit = exit;
         _taskbarCreated = RegisterWindowMessage("TaskbarCreated");
         _proc = SubclassWindowProc;
         Available = SetWindowSubclass(hwnd, _proc, _id, 0);
-        var data = Data(); data.uFlags = NidMessage | NidIcon | NidTip | NidShowTip; data.szTip = "LiteDM - downloads continue";
+        var data = Data();
+        data.uFlags = NidMessage | NidIcon | NidTip | NidShowTip;
+        data.szTip = "LiteDM - downloads continue";
         data.hIcon = LoadIcon(0, new nint(32512));
-        if (Available) Available = AddIcon(ref data);
+        if (Available)
+        {
+            Available = AddIcon(ref data);
+        }
     }
 
     private nint SubclassWindowProc(nint hwnd, uint msg, nint wParam, nint lParam, nuint subclassId, nuint refData)
     {
         if (msg == _taskbarCreated)
         {
-            var data = Data(); data.uFlags = NidMessage | NidIcon | NidTip | NidShowTip; data.szTip = "LiteDM - downloads continue"; data.hIcon = LoadIcon(0, new nint(32512));
+            var data = Data();
+            data.uFlags = NidMessage | NidIcon | NidTip | NidShowTip;
+            data.szTip = "LiteDM - downloads continue";
+            data.hIcon = LoadIcon(0, new nint(32512));
             Available = AddIcon(ref data);
             return 0;
         }
         if (msg == CallbackMessage)
         {
             var notification = unchecked((int)(lParam.ToInt64() & 0xffff));
-            if (notification is WmLButtonUp or WmLButtonDblClk or NinSelect or NinKeySelect) _open();
-            if (notification is WmContextMenu or 0x0205) ShowMenu();
+            if (notification is WmLButtonUp or WmLButtonDblClk or NinSelect or NinKeySelect)
+            {
+                _open();
+            }
+            if (notification is WmContextMenu or 0x0205)
+            {
+                ShowMenu();
+            }
             return 0;
         }
         return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -62,13 +78,22 @@ internal sealed class TrayIcon : IDisposable
         SetForegroundWindow(_hwnd);
         var selected = TrackPopupMenu(menu, 0x0100 | 0x0002 | 0x0001, point.X, point.Y, 0, _hwnd, 0);
         DestroyMenu(menu);
-        if (selected == 1) _open();
-        else if (selected == 2) _ = _exit();
+        if (selected == 1)
+        {
+            _open();
+        }
+        else if (selected == 2)
+        {
+            _ = _exit();
+        }
     }
 
     private bool AddIcon(ref NOTIFYICONDATA data)
     {
-        if (!Shell_NotifyIcon(NImAdd, ref data)) return false;
+        if (!Shell_NotifyIcon(NImAdd, ref data))
+        {
+            return false;
+        }
         data.uVersion = NotifyVersion4;
         Shell_NotifyIcon(NimSetVersion, ref data);
         return true;
@@ -76,9 +101,13 @@ internal sealed class TrayIcon : IDisposable
     private NOTIFYICONDATA Data() => new() { cbSize = Marshal.SizeOf<NOTIFYICONDATA>(), hWnd = _hwnd, uID = _id, uCallbackMessage = CallbackMessage };
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _disposed = true;
-        var data = Data(); Shell_NotifyIcon(NImDelete, ref data);
+        var data = Data();
+        Shell_NotifyIcon(NImDelete, ref data);
         RemoveWindowSubclass(_hwnd, _proc, _id);
         GC.KeepAlive(_proc);
     }
@@ -86,13 +115,24 @@ internal sealed class TrayIcon : IDisposable
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct NOTIFYICONDATA
     {
-        public int cbSize; public nint hWnd; public uint uID, uFlags, uCallbackMessage; public nint hIcon;
+        public int cbSize;
+        public nint hWnd;
+        public uint uID, uFlags, uCallbackMessage;
+        public nint hIcon;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string? szTip;
-        public uint dwState, dwStateMask; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string? szInfo;
-        public uint uVersion; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string? szInfoTitle; public uint dwInfoFlags;
-        public Guid guidItem; public nint hBalloonIcon;
+        public uint dwState, dwStateMask;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string? szInfo;
+        public uint uVersion;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string? szInfoTitle;
+        public uint dwInfoFlags;
+        public Guid guidItem;
+        public nint hBalloonIcon;
     }
-    [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X, Y; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X, Y;
+    }
     private delegate nint SubclassProc(nint hwnd, uint msg, nint wParam, nint lParam, nuint subclassId, nuint refData);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] private static extern bool Shell_NotifyIcon(int message, ref NOTIFYICONDATA data);
     [DllImport("comctl32.dll", SetLastError = true)] private static extern bool SetWindowSubclass(nint hwnd, SubclassProc callback, nuint id, nuint refData);

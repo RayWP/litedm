@@ -11,8 +11,14 @@ internal static class WindowsFolderPaths
         var id = DownloadsFolderId;
         if (SHGetKnownFolderPath(ref id, 0, 0, out var path) == 0)
         {
-            try { return Marshal.PtrToStringUni(path) ?? Fallback(); }
-            finally { Marshal.FreeCoTaskMem(path); }
+            try
+            {
+                return Marshal.PtrToStringUni(path) ?? Fallback();
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(path);
+            }
         }
         return Fallback();
     }

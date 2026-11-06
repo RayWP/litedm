@@ -16,7 +16,10 @@ internal static class Program
                 return 0;
             }
             var requestBytes = await NativeMessaging.ReadMessageAsync(Console.OpenStandardInput(), NativeMessaging.MaxMessageBytes);
-            if (requestBytes is null) return 0;
+            if (requestBytes is null)
+            {
+                return 0;
+            }
             var response = await NativeMessaging.HandleMessageAsync(requestBytes);
             await NativeMessaging.WriteMessageAsync(Console.OpenStandardOutput(), response);
             return 0;
