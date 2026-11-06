@@ -52,7 +52,9 @@ Describe each action using a precondition and a postcondition:
 | Restart | Previous worker has stopped | Old temporary bytes cannot enter the new result |
 | Complete | Every expected segment is verified | A complete destination exists without overwriting another file |
 
-The important distinction is between requesting an action and finishing it. Setting a cancellation token does not mean the worker has stopped. A correct pause path requests cancellation and awaits the worker before permitting another execution of the same job.
+Read `RunDownloadAsync` in [DownloadManager.cs](../src/LiteDM.Core/DownloadManager.cs) to see the order of a single job. It prepares the download by probing the server or restoring saved offsets, then transfers the bytes and commits the assembled file. Separate methods record completion, cancellation, and failure. The `finally` block releases the active slot and schedules the next queued job on every exit path.
+
+Setting a cancellation token requests that the worker stop. The pause path awaits the worker before permitting another execution of the same job.
 
 In `RemoveStoppedAsync`, the lifecycle lock serializes removal with resume and restart. The method rechecks the state after acquiring the lock and waits for any worker to finish. It deletes the job-specific partial directory before dropping the record. The UI then saves the remaining jobs to SQLite. If filesystem cleanup fails, the transfer stays available so the user can retry.
 

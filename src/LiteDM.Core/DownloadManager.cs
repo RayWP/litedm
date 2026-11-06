@@ -411,7 +411,7 @@ public sealed class DownloadManager : IAsyncDisposable
 
     private void Schedule()
     {
-        List<(Job Job, TaskCompletionSource Signal)> start = [];
+        List<(Job Job, TaskCompletionSource StartSignal)> scheduledDownloads = [];
         lock (_sync)
         {
             if (_shutdown)
@@ -420,8 +420,8 @@ public sealed class DownloadManager : IAsyncDisposable
             }
             while (_active < _options.MaxConcurrentDownloads && _queue.Count > 0)
             {
-                var id = _queue.Dequeue();
-                if (!_jobs.TryGetValue(id, out var job) || job.Snapshot.State != DownloadState.Queued)
+                var jobId = _queue.Dequeue();
+                if (!_jobs.TryGetValue(jobId, out var job) || job.Snapshot.State != DownloadState.Queued)
                 {
                     continue;
                 }
@@ -435,126 +435,42 @@ public sealed class DownloadManager : IAsyncDisposable
                 job.StartDownloadedBytes = job.Snapshot.DownloadedBytes;
                 job.Cancellation = new CancellationTokenSource();
                 job.PauseRequested = job.CancelRequested = false;
-                var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                var token = job.Cancellation.Token;
+                var startSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var cancellationToken = job.Cancellation.Token;
                 job.Running = Task.Run(async () =>
                 {
-                    await signal.Task.ConfigureAwait(false);
-                    await RunAsync(job, token).ConfigureAwait(false);
+                    await startSignal.Task.ConfigureAwait(false);
+                    await RunDownloadAsync(job, cancellationToken).ConfigureAwait(false);
                 });
-                start.Add((job, signal));
+                scheduledDownloads.Add((job, startSignal));
             }
         }
-        foreach (var item in start)
+        foreach (var scheduledDownload in scheduledDownloads)
         {
-            Publish(item.Job.Snapshot);
+            Publish(scheduledDownload.Job.Snapshot);
         }
-        foreach (var item in start)
+        foreach (var scheduledDownload in scheduledDownloads)
         {
-            item.Signal.TrySetResult();
+            scheduledDownload.StartSignal.TrySetResult();
         }
     }
 
-    private async Task RunAsync(Job job, CancellationToken token)
+    private async Task RunDownloadAsync(Job job, CancellationToken cancellationToken)
     {
         try
         {
-            if (job.Checkpoint is null)
-            {
-                await ProbeAsync(job, token).ConfigureAwait(false);
-            }
-            else
-            {
-                RestoreSavedOffsets(job);
-            }
-            if (job.Checkpoint?.Segmented == true)
-            {
-                await DownloadSegmentsAsync(job, token).ConfigureAwait(false);
-            }
-            else
-            {
-                await DownloadSingleAsync(job, token).ConfigureAwait(false);
-            }
-            await AssembleAndCommitAsync(job, token).ConfigureAwait(false);
-            lock (_sync)
-            {
-                job.Snapshot = job.Snapshot with
-                {
-                    State = DownloadState.Completed,
-                    HistoryAtUtc = DateTimeOffset.UtcNow,
-                    DownloadedBytes = job.Checkpoint!.Segments.Sum(s => s.SavedOffset),
-                    BytesPerSecond = 0,
-                    Error = null,
-                    CanResume = false,
-                    RequiresRestart = false
-                };
-            }
-            DeleteOwnedTemp(job);
-            Publish(job.Snapshot);
+            await PrepareDownloadAsync(job, cancellationToken).ConfigureAwait(false);
+            await TransferDownloadAsync(job, cancellationToken).ConfigureAwait(false);
+            await AssembleAndCommitAsync(job, cancellationToken).ConfigureAwait(false);
+            CompleteDownload(job);
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            lock (_sync)
-            {
-                if (job.CancelRequested)
-                {
-                    job.Snapshot = job.Snapshot with
-                    {
-                        State = DownloadState.Cancelled,
-                        BytesPerSecond = 0,
-                        CanResume = false
-                    };
-                }
-                else if (job.PauseRequested || _shutdown)
-                {
-                    job.Snapshot = job.Snapshot with
-                    {
-                        State = DownloadState.Paused,
-                        HistoryAtUtc = DateTimeOffset.UtcNow,
-                        BytesPerSecond = 0,
-                        CanResume = job.Checkpoint?.CanResume == true,
-                        RequiresRestart = job.Checkpoint is not null && !job.Checkpoint.CanResume && job.Snapshot.DownloadedBytes > 0
-                    };
-                }
-            }
-            SaveCheckpoint(job);
-            RestoreSavedOffsets(job);
-            Publish(job.Snapshot);
+            HandleDownloadCancellation(job);
         }
-        catch (ResourceChangedException ex)
+        catch (Exception exception)
         {
-            lock (_sync)
-            {
-                job.Snapshot = job.Snapshot with
-                {
-                    State = DownloadState.Failed,
-                    HistoryAtUtc = DateTimeOffset.UtcNow,
-                    BytesPerSecond = 0,
-                    Error = ex.Message,
-                    CanResume = false,
-                    RequiresRestart = true,
-                    IsCorrupt = true
-                };
-            }
-            SaveCheckpoint(job);
-            Publish(job.Snapshot);
-        }
-        catch (Exception ex)
-        {
-            lock (_sync)
-            {
-                job.Snapshot = job.Snapshot with
-                {
-                    State = DownloadState.Failed,
-                    HistoryAtUtc = DateTimeOffset.UtcNow,
-                    BytesPerSecond = 0,
-                    Error = ex.Message,
-                    CanResume = job.Checkpoint?.CanResume == true,
-                    RequiresRestart = job.Checkpoint is null || !job.Checkpoint.CanResume
-                };
-            }
-            SaveCheckpoint(job);
-            Publish(job.Snapshot);
+            FailDownload(job, exception);
         }
         finally
         {
@@ -567,6 +483,107 @@ public sealed class DownloadManager : IAsyncDisposable
             }
             Schedule();
         }
+    }
+
+    private async Task PrepareDownloadAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (job.Checkpoint is null)
+        {
+            await ProbeAsync(job, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            RestoreSavedOffsets(job);
+        }
+    }
+
+    private Task TransferDownloadAsync(Job job, CancellationToken cancellationToken)
+    {
+        if (job.Checkpoint?.Segmented == true)
+        {
+            return DownloadSegmentsAsync(job, cancellationToken);
+        }
+
+        return DownloadSingleAsync(job, cancellationToken);
+    }
+
+    private void CompleteDownload(Job job)
+    {
+        lock (_sync)
+        {
+            var completedBytes = job.Checkpoint!.Segments.Sum(segment => segment.SavedOffset);
+            job.Snapshot = job.Snapshot with
+            {
+                State = DownloadState.Completed,
+                HistoryAtUtc = DateTimeOffset.UtcNow,
+                DownloadedBytes = completedBytes,
+                BytesPerSecond = 0,
+                Error = null,
+                CanResume = false,
+                RequiresRestart = false
+            };
+        }
+
+        DeleteOwnedTemp(job);
+        Publish(job.Snapshot);
+    }
+
+    private void HandleDownloadCancellation(Job job)
+    {
+        lock (_sync)
+        {
+            if (job.CancelRequested)
+            {
+                job.Snapshot = job.Snapshot with
+                {
+                    State = DownloadState.Cancelled,
+                    BytesPerSecond = 0,
+                    CanResume = false
+                };
+            }
+            else if (job.PauseRequested || _shutdown)
+            {
+                var checkpoint = job.Checkpoint;
+                var canResume = checkpoint?.CanResume == true;
+                var requiresRestart = checkpoint is not null
+                    && !canResume
+                    && job.Snapshot.DownloadedBytes > 0;
+                job.Snapshot = job.Snapshot with
+                {
+                    State = DownloadState.Paused,
+                    HistoryAtUtc = DateTimeOffset.UtcNow,
+                    BytesPerSecond = 0,
+                    CanResume = canResume,
+                    RequiresRestart = requiresRestart
+                };
+            }
+        }
+
+        SaveCheckpoint(job);
+        RestoreSavedOffsets(job);
+        Publish(job.Snapshot);
+    }
+
+    private void FailDownload(Job job, Exception exception)
+    {
+        lock (_sync)
+        {
+            var resourceChanged = exception is ResourceChangedException;
+            var canResume = !resourceChanged && job.Checkpoint?.CanResume == true;
+            job.Snapshot = job.Snapshot with
+            {
+                State = DownloadState.Failed,
+                HistoryAtUtc = DateTimeOffset.UtcNow,
+                BytesPerSecond = 0,
+                Error = exception.Message,
+                CanResume = canResume,
+                RequiresRestart = !canResume,
+                IsCorrupt = resourceChanged || job.Snapshot.IsCorrupt
+            };
+        }
+
+        SaveCheckpoint(job);
+        Publish(job.Snapshot);
     }
 
     private async Task ProbeAsync(Job job, CancellationToken token)
