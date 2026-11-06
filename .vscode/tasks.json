@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "LiteDM: Build",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "LiteDM.slnx", "-c", "Debug", "-p:Platform=x64"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "LiteDM: Run",
+      "type": "process",
+      "command": "${workspaceFolder}/src/LiteDM.App/bin/x64/Debug/net10.0-windows10.0.19041.0/win-x64/LiteDM.App.exe",
+      "options": {
+        "cwd": "${workspaceFolder}/src/LiteDM.App/bin/x64/Debug/net10.0-windows10.0.19041.0/win-x64"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
