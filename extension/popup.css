@@ -1,0 +1,20 @@
+:root { color-scheme: light; font: 14px/1.45 "Segoe UI", Arial, sans-serif; color: #17324D; background: #DCEFFC; }
+* { box-sizing: border-box; }
+body { width: 310px; margin: 0; padding: 16px; }
+main { padding: 16px; border: 1px solid #C5D5E1; border-radius: 14px; background: #E8EDF2; box-shadow: 0 8px 24px #17324D18; }
+header { display: flex; align-items: center; gap: 11px; padding-bottom: 13px; border-bottom: 1px solid #CCD8E2; }
+h1 { margin: 0; font-size: 16px; line-height: 1.25; }
+header p { margin: 2px 0 0; color: #50677D; font-size: 12px; }
+section { min-height: 85px; padding: 15px 0 9px; }
+.status { margin: 0 0 5px; font-weight: 650; }
+.detail { margin: 0; color: #50677D; font-size: 12px; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 8px; }
+button { min-height: 36px; padding: 7px 11px; border: 1px solid #2563A6; border-radius: 8px; color: white; background: #2563A6; font: inherit; font-weight: 600; cursor: pointer; }
+button:hover { background: #194E86; }
+button:active { background: #173F6D; }
+button:disabled { color: #50677D; background: #D8E0E8; border-color: #A8B8C6; cursor: default; }
+button:focus-visible { outline: 3px solid #75AFE5; outline-offset: 2px; }
+button[hidden] { display: none; }
+#open { color: #2563A6; background: transparent; }
+#open:hover { background: #DCEFFC; }
+.footnote { margin: 13px 0 0; color: #50677D; font-size: 11px; }

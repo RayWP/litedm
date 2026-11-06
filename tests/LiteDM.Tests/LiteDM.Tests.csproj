@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\src\LiteDM.App\LocalStore.cs" Link="LocalStore.cs" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.5" />
+    <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.11" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.1"><IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets><PrivateAssets>all</PrivateAssets></PackageReference>
+    <Using Include="Xunit" />
+    <ProjectReference Include="..\..\src\LiteDM.Core\LiteDM.Core.csproj" />
+    <ProjectReference Include="..\..\src\LiteDM.Bridge\LiteDM.Bridge.csproj" />
+  </ItemGroup>
+</Project>

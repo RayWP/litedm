@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <ProjectType Extension=".csproj" BasedOn=".csproj">
+      <Platform Project="x64" />
+    </ProjectType>
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/LiteDM.App/LiteDM.App.csproj" />
+    <Project Path="src/LiteDM.Bridge/LiteDM.Bridge.csproj" />
+    <Project Path="src/LiteDM.Core/LiteDM.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LiteDM.Tests/LiteDM.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiteDM Browser Bridge</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header><div><h1>LiteDM</h1><p>Browser bridge</p></div></header>
+    <section aria-live="polite" aria-atomic="true">
+      <p id="status" class="status">Checking connection…</p>
+      <p id="detail" class="detail">Use “Download with LiteDM” on an HTTP or HTTPS link.</p>
+    </section>
+    <div class="actions">
+      <button id="retry" type="button" hidden>Retry handoff</button>
+      <button id="open" type="button">Open LiteDM</button>
+    </div>
+    <p class="footnote">A link is only added after you confirm it in LiteDM.</p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<Application
+    x:Class="LiteDM.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="AppBackground" Color="#E8EDF2" />
+            <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="SurfaceAlt" Color="#DCEFFC" />
+            <SolidColorBrush x:Key="PrimaryText" Color="#17324D" />
+            <SolidColorBrush x:Key="SecondaryText" Color="#50677D" />
+            <SolidColorBrush x:Key="Accent" Color="#2563A6" />
+            <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="Line" Color="#CBD6E0" />
+            <SolidColorBrush x:Key="Danger" Color="#A63A3A" />
+            <Style x:Key="AccentButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource Accent}" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentForeground}" />
+                <Setter Property="Padding" Value="16,9" />
+                <Setter Property="MinHeight" Value="38" />
+            </Style>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBackground" Color="#E8EDF2" />
+                    <SolidColorBrush x:Key="Surface" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="SurfaceAlt" Color="#DCEFFC" />
+                    <SolidColorBrush x:Key="PrimaryText" Color="#17324D" />
+                    <SolidColorBrush x:Key="SecondaryText" Color="#50677D" />
+                    <SolidColorBrush x:Key="Accent" Color="#2563A6" />
+                    <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Line" Color="#CBD6E0" />
+                    <SolidColorBrush x:Key="Danger" Color="#A63A3A" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBackground" Color="#172431" />
+                    <SolidColorBrush x:Key="Surface" Color="#223344" />
+                    <SolidColorBrush x:Key="SurfaceAlt" Color="#2B4053" />
+                    <SolidColorBrush x:Key="PrimaryText" Color="#E8F1F8" />
+                    <SolidColorBrush x:Key="SecondaryText" Color="#B6C7D6" />
+                    <SolidColorBrush x:Key="Accent" Color="#75B5F1" />
+                    <SolidColorBrush x:Key="AccentForeground" Color="#17324D" />
+                    <SolidColorBrush x:Key="Line" Color="#53697D" />
+                    <SolidColorBrush x:Key="Danger" Color="#FF9C91" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
